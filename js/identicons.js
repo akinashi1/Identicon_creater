@@ -144,9 +144,88 @@ function blobs(r, colors, uid) {
   return out;
 }
 
+// インベーダー: 11x11 の左右対称グリッド。上=触角(行0-1) / 中=体と目(行2-8) / 下=足(行9-10)
+function invader(r, [fg]) {
+  const N = 11, C = 5, cell = 8, off = 6;
+  const g = Array.from({ length: N }, () => Array(N).fill(false));
+  const ri = (a, b) => a + Math.floor(r() * (b - a + 1));
+  const put = (x, y) => { g[y][x] = g[y][N - 1 - x] = true; };
+
+  // 体: 行ごとに左右の削り幅(inset)を揺らして輪郭を作る
+  const base = [2, 1, 0, 0, 0, 1, 2];
+  base.forEach((b, i) => {
+    const inset = Math.min(3, Math.max(0, b + (r() < 0.3 ? 1 : 0) - (r() < 0.3 ? 1 : 0)));
+    for (let x = inset; x <= C; x++) put(x, 2 + i);
+  });
+
+  // 目: 1個=3x3の中央に点 / 2,3個=1〜4ブロック。他の目の周囲に入らないものだけ採用
+  const SIDE = [[1, 1], [2, 1], [1, 2], [2, 2]];
+  const touches = (a, b) =>
+    b.x < a.x + a.w + 1 && b.x + b.w > a.x - 1 && b.y < a.y + a.h + 1 && b.y + b.h > a.y - 1;
+  let eyes = [{ x: 4, y: ri(3, 5), w: 3, h: 3, big: true }];
+  const n = ri(1, 3);
+  for (let tries = 0; n > 1 && tries < 30; tries++) {
+    const [w, h] = SIDE[ri(0, 3)];
+    const x = ri(1, 4), y = ri(3, 8 - h);
+    const list = [{ x, y, w, h }, { x: N - x - w, y, w, h }];
+    if (n === 3) {
+      const ch = ri(1, 2);
+      list.push({ x: C, y: ri(3, 8 - ch), w: 1, h: ch });
+    }
+    const ok = list.every((a) => list.every((b) => a === b || !touches(a, b)));
+    if (ok) { eyes = list; break; }
+  }
+  // 目の周囲 1 マスを必ず塗り、目のマスだけ抜く(大きい目は中央に点を残す)
+  for (const e of eyes) {
+    for (let y = e.y - 1; y <= e.y + e.h; y++) for (let x = e.x - 1; x <= e.x + e.w; x++) g[y][x] = true;
+  }
+  for (const e of eyes) {
+    for (let y = e.y; y < e.y + e.h; y++) for (let x = e.x; x < e.x + e.w; x++) g[y][x] = false;
+    if (e.big) g[e.y + 1][C] = true;
+  }
+
+  // 触角: 1〜3本(中央 / 左右ペア / 両方)。2段のときは先端を外側へ曲げることがある
+  const count = ri(1, 3);
+  if (count !== 2) {
+    for (let y = 2 - ri(1, 2); y < 2; y++) put(C, y);
+  }
+  if (count >= 2) {
+    const first = g[2].findIndex(Boolean);
+    const c = ri(Math.max(first, 1), count === 3 ? 3 : 4);
+    const tall = r() < 0.5, bend = r() < 0.5;
+    put(c, 1);
+    if (tall) put(bend ? c - 1 : c, 0);
+  }
+
+  // 足: 体の下端から 2〜3 本。足先は真下 / 外側へずらす / 両方 からランダム
+  const cand = [];
+  for (let x = 0; x <= C; x++) if (g[8][x]) cand.push(x);
+  for (let i = cand.length - 1; i > 0; i--) {
+    const j = ri(0, i);
+    [cand[i], cand[j]] = [cand[j], cand[i]];
+  }
+  const legs = [], want = ri(2, 3);
+  for (const x of cand) {
+    if (legs.length < want && legs.every((o) => Math.abs(o - x) > 1)) legs.push(x);
+  }
+  for (const x of legs) {
+    put(x, 9);
+    const t = x === C || x === 0 ? 0 : ri(0, 2);
+    if (t !== 1) put(x, 10);
+    if (t !== 0) put(x - 1, 10);
+  }
+
+  let out = `<g fill="${fg}" shape-rendering="crispEdges">`;
+  g.forEach((row, y) => row.forEach((on, x) => {
+    if (on) out += `<rect x="${off + x * cell}" y="${off + y * cell}" width="${cell}" height="${cell}"/>`;
+  }));
+  return out + "</g>";
+}
+
 /** bg: 'auto' のときに使うスタイル別の既定背景。null は背景なし(自前描画) */
 export const STYLES = [
-  { id: "github", name: "GitHub", bg: "#f0f0f0", colors: 1, draw: github },
+  { id: "github", name: "GitHub風", bg: "#f0f0f0", colors: 1, draw: github },
+  { id: "invader", name: "インベーダー", bg: "#1f2328", colors: 1, draw: invader },
   { id: "pixel", name: "ピクセル", bg: "#fafafa", colors: 3, draw: pixel },
   { id: "rings", name: "リング", bg: "#fafafa", colors: 3, draw: rings },
   { id: "blocks", name: "ブロック", bg: "#fafafa", colors: 4, draw: blocks },
