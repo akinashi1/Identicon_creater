@@ -484,6 +484,109 @@ function jsab(r, _colors, _uid, t, custom) {
   return out + `<circle cx="50" cy="50" r="${f(2 + 2 * pulse)}" fill="${cw}"/>`;
 }
 
+// 家紋風: 和色の一色で、外枠(丸) + 回転対称の図柄(梅鉢 / 花弁 / 巴 / 葉 / 輪違い / 菱)
+function kamon(r, _colors, _uid, _t, custom) {
+  const WA = ["#1a1a1a", "#9b1b1b", "#1d3a6b", "#2b5d3a", "#4b2e6f", "#8a5a14"];
+  const ink = custom ?? WA[rint(r, 0, WA.length - 1)];
+  const ring = rint(r, 0, 3), Rm = [40, 35, 34, 33][ring];
+  const outline = r() < 0.35;
+  const paint = outline ? `fill="none" stroke="${ink}" stroke-width="2" stroke-linejoin="round"` : `fill="${ink}"`;
+  const copies = (n, shape) => Array.from({ length: n }, (_, i) => `<g transform="rotate(${f((360 * i) / n)})">${shape}</g>`).join("");
+
+  let out = "";
+  if (ring === 1) out += `<circle cx="50" cy="50" r="44" fill="none" stroke="${ink}" stroke-width="1.6"/>`;
+  if (ring === 2) out += `<circle cx="50" cy="50" r="42" fill="none" stroke="${ink}" stroke-width="5"/>`;
+  if (ring === 3) out += `<circle cx="50" cy="50" r="45" fill="none" stroke="${ink}" stroke-width="1.4"/><circle cx="50" cy="50" r="40" fill="none" stroke="${ink}" stroke-width="3.6"/>`;
+
+  let motif = "";
+  const kind = rint(r, 0, 5);
+  if (kind === 0) { // 梅鉢
+    const n = rint(r, 5, 8), d = Rm * 0.58, pr = f(d * Math.sin(Math.PI / n) * 0.92);
+    motif = copies(n, `<circle cy="${f(-d)}" r="${pr}" ${paint}/>`) + `<circle r="${f(Rm * 0.2)}" fill="${ink}"/>`;
+  } else if (kind === 1) { // 菊・桜のような花弁
+    const n = rint(r, 8, 16), L = Rm, w = f((1.93 * L) / n);
+    motif = copies(n, `<path d="M0 0C${w} ${f(-L * 0.3)} ${w} ${f(-L * 0.8)} 0 ${-L}C${-w} ${f(-L * 0.8)} ${-w} ${f(-L * 0.3)} 0 0Z" ${paint}/>`) +
+      `<circle r="${f(Rm * 0.1)}" fill="${ink}"/>`;
+  } else if (kind === 2) { // 巴
+    const n = rint(r, 2, 4), rho = Rm * 0.62, hr = Rm * [0, 0, 0.34, 0.3, 0.26][n];
+    const sweep = ((360 / n) * 0.9 * Math.PI) / 180, a0 = -Math.PI / 2, K = 20, outer = [], inner = [];
+    for (let k = 0; k <= K; k++) {
+      const u = k / K, a = a0 + u * sweep, h = hr * Math.pow(1 - u, 0.85);
+      outer.push(`${f((rho + h) * Math.cos(a))},${f((rho + h) * Math.sin(a))}`);
+      inner.push(`${f((rho - h) * Math.cos(a))},${f((rho - h) * Math.sin(a))}`);
+    }
+    motif = copies(n, `<polygon points="${outer.concat(inner.reverse()).join(" ")}" fill="${ink}"/><circle cy="${f(-rho)}" r="${f(hr)}" fill="${ink}"/>`);
+  } else if (kind === 3) { // 葉(三つ葉・五つ葉など)
+    const n = rint(r, 3, 6), L = Rm, w = f(Math.min(L * 0.5, (1.9 * L) / n));
+    motif = copies(n, `<path d="M0 ${f(-L * 0.08)}C${w} ${f(-L * 0.25)} ${f(w * 0.9)} ${f(-L * 0.75)} 0 ${-L}C${f(-w * 0.9)} ${f(-L * 0.75)} ${-w} ${f(-L * 0.25)} 0 ${f(-L * 0.08)}Z" ${paint}/>`) +
+      `<circle r="${f(Rm * 0.09)}" fill="${ink}"/>`;
+  } else if (kind === 4) { // 輪違い・七宝
+    const n = rint(r, 3, 6), d = Rm * 0.42, rr = f(Rm * 0.58);
+    motif = copies(n, `<circle cy="${f(-d)}" r="${rr}" fill="none" stroke="${ink}" stroke-width="2.6"/>`) + `<circle r="3" fill="${ink}"/>`;
+  } else { // 花菱
+    const n = rint(r, 4, 8), L = Rm, w = f((1.2 * L) / n);
+    motif = copies(n, `<polygon points="0,0 ${w},${-L / 2} 0,${-L} ${-w},${-L / 2}" ${paint}/>`) + `<circle r="${f(Rm * 0.1)}" fill="${ink}"/>`;
+  }
+  return out + `<g transform="translate(50 50)">${motif}</g>`;
+}
+
+// 英国紋章風: 王冠 + 盾(分割・図形) + 月桂冠 + リボン。金・銀 と 赤・青・緑・紫・黒 を組み合わせる
+function heraldry(r, _colors, uid, _t, custom) {
+  const METAL = ["#e6bf3c", "#f6f4ee"], COLOR = ["#c8102e", "#1d3f8f", "#1f7a3a", "#6b2d8a", "#161616"], SK = "#161616";
+  const mi = rint(r, 0, 1), met = METAL[mi], charge = METAL[1 - mi];
+  const col = custom ?? COLOR[rint(r, 0, COLOR.length - 1)], banner = COLOR[rint(r, 0, 2)];
+  const swap = r() < 0.5, f1 = swap ? met : col, f2 = swap ? col : met;
+  const SHIELD = "M24 22H76V50C76 68 64 78 50 84C36 78 24 68 24 50Z";
+  const st = `stroke="${SK}" stroke-width="1.2" stroke-linejoin="round"`;
+
+  // 月桂冠(盾の左右に葉を弧状に並べる)
+  let out = "";
+  for (let i = 0; i < 7; i++) {
+    const th = ((-35 + i * 15) * Math.PI) / 180, x = 50 + 40 * Math.cos(th), y = 58 - 40 * Math.sin(th);
+    const rot = f(90 - (th * 180) / Math.PI);
+    out += `<ellipse cx="${f(x)}" cy="${f(y)}" rx="2.3" ry="5.4" transform="rotate(${rot} ${f(x)} ${f(y)})" fill="#2f8f4e" stroke="${SK}" stroke-width=".7"/>` +
+      `<ellipse cx="${f(100 - x)}" cy="${f(y)}" rx="2.3" ry="5.4" transform="rotate(${-rot} ${f(100 - x)} ${f(y)})" fill="#2f8f4e" stroke="${SK}" stroke-width=".7"/>`;
+  }
+  out += `<path d="M22 89Q50 99 78 89L83 92L78 95Q50 105 22 95L17 92Z" fill="${banner}" ${st}/>`;
+
+  // 盾の分割
+  const div = rint(r, 0, 8);
+  const fill2 = [
+    "", `<rect x="50" y="0" width="50" height="100"/>`, `<rect x="0" y="53" width="100" height="50"/>`,
+    `<polygon points="24,22 100,22 100,100"/>`, `<rect x="50" y="0" width="50" height="53"/><rect x="0" y="53" width="50" height="50"/>`,
+    `<polygon points="0,88 50,40 100,88 100,100 0,100"/>`, `<polygon points="50,53 0,3 0,103"/><polygon points="50,53 100,3 100,103"/>`,
+    `<rect x="44" y="0" width="12" height="100"/><rect x="0" y="47" width="100" height="12"/>`, `<rect x="0" y="0" width="100" height="40"/>`,
+  ][div];
+  out += `<defs><clipPath id="${uid}-s"><path d="${SHIELD}"/></clipPath></defs>` +
+    `<g clip-path="url(#${uid}-s)"><rect width="100" height="100" fill="${f1}"/><g fill="${f2}">${fill2}</g></g>` +
+    `<path d="${SHIELD}" fill="none" stroke="${SK}" stroke-width="2.2" stroke-linejoin="round"/>`;
+
+  // 盾の上の図形
+  const cy = div === 8 ? 64 : 54, ch = rint(r, 0, 4);
+  const star = (R, rr) => Array.from({ length: 10 }, (_, i) => {
+    const a = -Math.PI / 2 + (i * Math.PI) / 5, rad = i % 2 ? rr : R;
+    return `${f(Math.cos(a) * rad)},${f(Math.sin(a) * rad)}`;
+  }).join(" ");
+  const g = (inner) => `<g transform="translate(50 ${cy})" fill="${charge}" ${st}>${inner}</g>`;
+  if (ch === 1) out += g(`<polygon points="${star(12, 5)}"/>`);
+  else if (ch === 2) {
+    const side = `<path d="M-1 3C-9 -9 -16 -5 -14 2C-12 7 -6 7 -1 5Z"/>`;
+    out += g(`<path d="M0 -14C6 -8 6 0 0 5C-6 0 -6 -8 0 -14Z"/>${side}<g transform="scale(-1 1)">${side}</g>` +
+      `<rect x="-9" y="5" width="18" height="3.5" rx="1"/><path d="M0 8C4 11 4 15 0 17C-4 15 -4 11 0 8Z"/>`);
+  } else if (ch === 3) {
+    out += g(`<path transform="translate(3 0) rotate(20)" d="M0 -12A12 12 0 0 0 0 12A15 15 0 0 1 0 -12Z"/>`);
+  } else if (ch === 4) {
+    out += g(`<circle cx="-9" cy="-6" r="6.5"/><circle cx="9" cy="-6" r="6.5"/><circle cx="0" cy="9" r="6.5"/>`);
+  }
+
+  // 王冠
+  out += `<path d="M30 20L28 8L37 14L44 5L50 13L56 5L63 14L72 8L70 20Z" fill="${METAL[0]}" ${st}/>` +
+    `<rect x="30" y="16" width="40" height="4.5" fill="${METAL[0]}" ${st}/>` +
+    [[28, 8], [44, 5], [56, 5], [72, 8]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2.1" fill="#c8102e" ${st}/>`).join("") +
+    [38, 50, 62].map((x) => `<circle cx="${x}" cy="18.2" r="1.3" fill="#1d3f8f"/>`).join("");
+  return out;
+}
+
 /** bg: 'auto' のときに使うスタイル別の既定背景。null は背景なし(自前描画) */
 export const STYLES = [
   { id: "github", name: "GitHub風", bg: "#f0f0f0", colors: 1, draw: github,
@@ -492,6 +595,10 @@ export const STYLES = [
     desc: "オリジナル。ゲーム「スペースインベーダー」の敵キャラのような、目・触角・足を持つドット絵です。" },
   { id: "jsab", name: "JSAB風（動く）", bg: "#0b0b1a", colors: 1, draw: jsab, animated: true,
     desc: "ゲーム「Just Shapes & Beats」のような、赤と白の図形がビートに合わせて脈打つ動くアイコン。2 秒でループし、GIF で保存できます。" },
+  { id: "kamon", name: "家紋風", bg: "#f5efe0", colors: 1, draw: kamon,
+    desc: "日本の家紋風。家や一族を表す丸い紋で、着物・墓石・旗印・屋根瓦などに使われます。梅鉢・花弁・巴・葉・輪違い・花菱のどれかを回転対称に描きます。" },
+  { id: "heraldry", name: "紋章風（英国）", bg: "#f1ead8", colors: 1, draw: heraldry,
+    desc: "英国の紋章（コート・オブ・アームズ）風。盾の分割と図形、王冠、月桂冠、リボンの組み合わせ。家や自治体・大学・団体の紋章などに使われます。" },
   { id: "ssh", name: "SSH randomart", bg: "#1f2328", colors: 1, draw: sshart,
     desc: "ssh-keygen や接続時のホスト鍵確認で表示される、鍵の指紋（fingerprint）を絵にしたもの。通称 randomart です。" },
   { id: "pixel", name: "Blockies風", bg: "#fafafa", colors: 3, draw: pixel,
