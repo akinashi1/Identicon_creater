@@ -1,11 +1,12 @@
 import { randomString } from "./hash.js";
 import { STYLES, render } from "./identicons.js";
+import { encodeGif } from "./gif.js";
 
 const $ = (sel) => document.querySelector(sel);
 const el = {
   seed: $("#seed"), random: $("#random"), shape: $("#shape"), bg: $("#bg"), size: $("#size"),
   useColor: $("#useColor"), color: $("#color"), preview: $("#preview"), gallery: $("#gallery"),
-  styleName: $("#styleName"), styleDesc: $("#styleDesc"), batch: $("#batch"), roll: $("#roll"), status: $("#status"), dlSvg: $("#dlSvg"), dlPng: $("#dlPng"), copySvg: $("#copySvg"), share: $("#share"),
+  styleName: $("#styleName"), styleDesc: $("#styleDesc"), batch: $("#batch"), roll: $("#roll"), status: $("#status"), dlSvg: $("#dlSvg"), dlPng: $("#dlPng"), dlGif: $("#dlGif"), copySvg: $("#copySvg"), share: $("#share"),
 };
 
 const state = { seed: "", style: "github" };
@@ -36,8 +37,8 @@ function shareUrl() {
   return `${location.origin}${location.pathname}#${p}`;
 }
 
-const options = (style, size) => ({
-  style, size,
+const options = (style, size, t) => ({
+  style, size, t,
   shape: el.shape.value,
   bg: el.bg.value,
   color: el.useColor.checked ? el.color.value : null,
@@ -93,6 +94,7 @@ function update() {
   const info = STYLES.find((s) => s.id === state.style);
   el.styleName.textContent = info.name;
   el.styleDesc.textContent = info.desc;
+  el.dlGif.hidden = !info.animated;
   renderBatch();
   history.replaceState(null, "", shareUrl());
 }
@@ -138,6 +140,56 @@ el.dlPng.addEventListener("click", () => {
     canvas.toBlob((blob) => download(blob, `${fileBase()}.png`), "image/png");
   };
   img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(currentSvg())}`;
+});
+
+// ---- アニメーション (プレビューと 10連ランダムだけ動かす) ----
+const LOOP_MS = 2000, GIF_FRAMES = 40, GIF_MAX_SIZE = 512;
+const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let lastFrame = 0;
+
+function tick(now) {
+  requestAnimationFrame(tick);
+  if (!STYLES.find((s) => s.id === state.style).animated || now - lastFrame < 33) return;
+  lastFrame = now;
+  const t = (now % LOOP_MS) / LOOP_MS;
+  el.preview.innerHTML = render(state.seed, options(state.style, +el.size.value, t));
+  for (const tile of el.batch.children) {
+    tile.firstChild.innerHTML = render(tile.title, options(state.style, 128, t));
+  }
+}
+if (!reducedMotion) requestAnimationFrame(tick);
+
+// ---- GIF 書き出し: 1 ループぶんのフレームを描いて 1 枚の GIF にまとめる ----
+const loadImage = (svg) => new Promise((resolve, reject) => {
+  const img = new Image();
+  img.onload = () => resolve(img);
+  img.onerror = reject;
+  img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+});
+
+el.dlGif.addEventListener("click", async () => {
+  const size = Math.min(+el.size.value, GIF_MAX_SIZE);
+  el.dlGif.disabled = true;
+  say("GIF を作成中…");
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    const frames = [];
+    for (let i = 0; i < GIF_FRAMES; i++) {
+      const img = await loadImage(render(state.seed, options(state.style, size, i / GIF_FRAMES)));
+      ctx.clearRect(0, 0, size, size);
+      ctx.drawImage(img, 0, 0, size, size);
+      frames.push(ctx.getImageData(0, 0, size, size));
+    }
+    const bytes = encodeGif(frames, size, size, Math.round(LOOP_MS / GIF_FRAMES / 10));
+    download(new Blob([bytes], { type: "image/gif" }), `${fileBase()}.gif`);
+    say(size < +el.size.value ? `GIF を保存しました（${GIF_MAX_SIZE}px に縮小）` : "GIF を保存しました");
+  } catch {
+    say("GIF を作成できませんでした");
+  } finally {
+    el.dlGif.disabled = false;
+  }
 });
 
 el.copySvg.addEventListener("click", () => copy(currentSvg(), "SVG をコピーしました"));

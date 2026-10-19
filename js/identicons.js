@@ -433,12 +433,66 @@ function mosaic(r, colors) {
   return out + "</g>";
 }
 
+// JSAB 風 (アニメ): ネオン色の図形がビートに合わせて脈打つ。t(0〜1) が 1 ループで、4 拍ぶんの動き。
+// 回転は必ず「対称性の整数倍」だけ回すので、t=1 と t=0 が一致してループが途切れない。
+function jsab(r, _colors, _uid, t, custom) {
+  const NEON = ["#ff2d95", "#00e5ff", "#ffe14d", "#7cff4d", "#b36bff", "#ff6a3d"];
+  const i0 = rint(r, 0, 5), i1 = (i0 + rint(r, 1, 5)) % 6;
+  const ca = custom ?? NEON[i0], cb = NEON[i1], cw = "#ffffff";
+  const ph = (t * 4) % 1, pulse = (1 - ph) ** 3;
+  const poly = (n, rad) => Array.from({ length: n }, (_, i) => {
+    const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
+    return `${f(Math.cos(a) * rad)},${f(Math.sin(a) * rad)}`;
+  }).join(" ");
+
+  const sides = [3, 4, 5, 6, 0][rint(r, 0, 4)], baseR = 14 + r() * 6;
+  const dir = r() < 0.5 ? -1 : 1, turns = rint(r, 1, 2), outline = r() < 0.4;
+  const ringN = rint(r, 1, 2), cornerSize = 18 + r() * 14;
+  const beams = Array.from({ length: rint(r, 0, 2) }, () => ({
+    base: r() * 180, m: rint(r, 1, 2), d: r() < 0.5 ? -1 : 1, w: 1.4 + r() * 1.6,
+  }));
+  const orbN = rint(r, 2, 6), orbR = rint(r, 30, 38), orbType = rint(r, 0, 2), orbS = 3 + r() * 2;
+  const orbDir = r() < 0.5 ? -1 : 1;
+
+  const s = cornerSize, co = f(0.1 + 0.25 * pulse);
+  let out = `<g fill="${cb}" fill-opacity="${co}"><polygon points="0,0 ${s},0 0,${s}"/><polygon points="100,0 ${100 - s},0 100,${s}"/>` +
+    `<polygon points="0,100 ${s},100 0,${100 - s}"/><polygon points="100,100 ${100 - s},100 100,${100 - s}"/></g>`;
+  for (const b of beams) {
+    out += `<rect x="-20" y="${f(50 - b.w / 2)}" width="140" height="${f(b.w)}" fill="${ca}" fill-opacity="${f(0.35 + 0.4 * pulse)}" transform="rotate(${f(b.base + 180 * b.m * b.d * t)} 50 50)"/>`;
+  }
+  for (let k = 0; k < ringN; k++) {
+    const p = (t * 2 + k / ringN) % 1;
+    out += `<circle cx="50" cy="50" r="${f(8 + 46 * p)}" fill="none" stroke="${cb}" stroke-width="1.6" stroke-opacity="${f((1 - p) * 0.85)}"/>`;
+  }
+  for (let i = 0; i < orbN; i++) {
+    const ang = (360 * i) / orbN + 360 * orbDir * t, rad = orbR + 3 * pulse, c = i % 2 ? cb : ca;
+    const shape = orbType === 0 ? `<polygon points="${poly(3, f(orbS * 1.3))}" fill="${c}"/>`
+      : orbType === 1 ? `<rect x="${-orbS}" y="${-orbS}" width="${orbS * 2}" height="${orbS * 2}" fill="${c}"/>`
+      : `<circle r="${f(orbS)}" fill="${c}"/>`;
+    out += `<g transform="rotate(${f(ang)} 50 50) translate(50 ${f(50 - rad)}) rotate(${f(360 * orbDir * t)})">${shape}</g>`;
+  }
+
+  const sc = f(1 + 0.22 * pulse);
+  if (sides) {
+    const step = 360 / sides;
+    out += `<g transform="translate(50 50) rotate(${f(dir * step * turns * t)}) scale(${sc})" stroke-linejoin="round">` +
+      `<polygon points="${poly(sides, f(baseR))}" fill="${outline ? "none" : ca}" stroke="${outline ? ca : cw}" stroke-width="2.4"/>` +
+      `<polygon points="${poly(sides, f(baseR * 0.5))}" fill="${cb}" transform="rotate(${f(-dir * step * turns * t)})"/></g>`;
+  } else {
+    out += `<g transform="translate(50 50) scale(${sc})"><circle r="${f(baseR)}" fill="${outline ? "none" : ca}" stroke="${outline ? ca : cw}" stroke-width="2.4"/>` +
+      `<circle r="${f(baseR * 0.55)}" fill="none" stroke="${cb}" stroke-width="2.6" stroke-dasharray="6 5" transform="rotate(${f(dir * 360 * t)})"/></g>`;
+  }
+  return out + `<circle cx="50" cy="50" r="${f(2 + 2 * pulse)}" fill="${cw}"/>`;
+}
+
 /** bg: 'auto' のときに使うスタイル別の既定背景。null は背景なし(自前描画) */
 export const STYLES = [
   { id: "github", name: "GitHub風", bg: "#f0f0f0", colors: 1, draw: github,
     desc: "GitHub が、アイコン未設定のユーザーに自動で割り当てるアバター。5x5 の左右対称ドットが特徴です。" },
   { id: "invader", name: "インベーダー", bg: "#1f2328", colors: 1, draw: invader,
     desc: "オリジナル。ゲーム「スペースインベーダー」の敵キャラのような、目・触角・足を持つドット絵です。" },
+  { id: "jsab", name: "JSAB風（動く）", bg: "#0b0b1a", colors: 1, draw: jsab, animated: true,
+    desc: "ゲーム「Just Shapes & Beats」のような、ネオン色の図形がビートに合わせて脈打つ動くアイコン。2 秒でループし、GIF で保存できます。" },
   { id: "ssh", name: "SSH randomart", bg: "#1f2328", colors: 1, draw: sshart,
     desc: "ssh-keygen や接続時のホスト鍵確認で表示される、鍵の指紋（fingerprint）を絵にしたもの。通称 randomart です。" },
   { id: "pixel", name: "Blockies風", bg: "#fafafa", colors: 3, draw: pixel,
@@ -477,12 +531,13 @@ let uidCounter = 0;
  * opts: { style, shape: square|rounded|circle, bg: auto|transparent|white|dark, color: '#rrggbb'|null, size }
  */
 export function render(seed, opts = {}) {
-  const { style = "github", shape = "square", bg = "auto", color = null, size = 256 } = opts;
+  // t: アニメーションの位相(0〜1)。静止スタイルでは無視される。既定値は動きが見える中間の位置
+  const { style = "github", shape = "square", bg = "auto", color = null, size = 256, t = 0.1 } = opts;
   const def = STYLES.find((s) => s.id === style) ?? STYLES[0];
   const uid = `ic${++uidCounter}`;
   const r = createRng(`${def.id}:${seed}`);
   const colors = makePalette(r, def.colors, color);
-  const body = def.draw(r, colors, uid);
+  const body = def.draw(r, colors, uid, t, color);
 
   const bgColor = bg === "transparent" ? null : bg === "auto" ? def.bg : BG_PRESETS[bg];
   const bgRect = bgColor ? `<rect width="100" height="100" fill="${bgColor}"/>` : "";
