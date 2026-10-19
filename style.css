@@ -70,4 +70,12 @@ button:hover { border-color: var(--muted); }
 .tile[aria-pressed="true"] { border-color: var(--accent); }
 .tile[aria-pressed="true"] span { color: var(--text); font-weight: 600; }
 
+.head { justify-content: space-between; margin-bottom: 4px; }
+.head h2 { margin: 0; }
+.hint { margin: 0 0 10px; color: var(--muted); font-size: 0.85rem; }
+.batch { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+.batch .tile { cursor: pointer; font: inherit; color: inherit; }
+.batch .tile span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, monospace; }
+.batch .tile:hover { border-color: var(--muted); }
+
 footer { text-align: center; font-size: 0.85rem; }

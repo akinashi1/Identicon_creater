@@ -5,7 +5,7 @@ const $ = (sel) => document.querySelector(sel);
 const el = {
   seed: $("#seed"), random: $("#random"), shape: $("#shape"), bg: $("#bg"), size: $("#size"),
   useColor: $("#useColor"), color: $("#color"), preview: $("#preview"), gallery: $("#gallery"),
-  status: $("#status"), dlSvg: $("#dlSvg"), dlPng: $("#dlPng"), copySvg: $("#copySvg"), share: $("#share"),
+  batch: $("#batch"), roll: $("#roll"), status: $("#status"), dlSvg: $("#dlSvg"), dlPng: $("#dlPng"), copySvg: $("#copySvg"), share: $("#share"),
 };
 
 const state = { seed: "", style: "github" };
@@ -56,6 +56,32 @@ function buildGallery() {
   }));
 }
 
+// 10連ランダム: 引いた文字列を保持し、設定が変わったら同じ文字列で描き直す
+let batchSeeds = [];
+
+function roll() {
+  batchSeeds = Array.from({ length: 10 }, () => randomString());
+  renderBatch();
+}
+
+function renderBatch() {
+  el.batch.replaceChildren(...batchSeeds.map((seed) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "tile";
+    btn.title = seed;
+    btn.innerHTML = `<div>${render(seed, options(state.style, 128))}</div><span></span>`;
+    btn.lastChild.textContent = seed;
+    btn.addEventListener("click", () => {
+      state.seed = seed;
+      el.seed.value = seed;
+      update();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+    return btn;
+  }));
+}
+
 function update() {
   const size = +el.size.value;
   el.preview.innerHTML = render(state.seed, options(state.style, size));
@@ -64,6 +90,7 @@ function update() {
     tile.firstChild.innerHTML = render(state.seed, options(id, 128));
     tile.setAttribute("aria-pressed", String(id === state.style));
   }
+  renderBatch();
   history.replaceState(null, "", shareUrl());
 }
 
@@ -123,6 +150,9 @@ el.random.addEventListener("click", () => {
 el.useColor.addEventListener("change", () => { el.color.disabled = !el.useColor.checked; update(); });
 for (const key of ["shape", "bg", "size", "color"]) el[key].addEventListener("input", update);
 
+el.roll.addEventListener("click", roll);
+
 loadFromHash();
 buildGallery();
+roll();
 update();
