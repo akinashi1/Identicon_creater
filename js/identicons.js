@@ -433,14 +433,11 @@ function mosaic(r, colors) {
   return out + "</g>";
 }
 
-// JSAB 風 (アニメ): ネオン色の図形がビートに合わせて脈打つ。t(0〜1) が 1 ループで、4 拍ぶんの動き。
+// JSAB 風 (アニメ): 赤と白の図形がビートに合わせて脈打つ。t(0〜1) が 1 ループで、4 拍ぶんの動き。
 // 回転は必ず「対称性の整数倍」だけ回すので、t=1 と t=0 が一致してループが途切れない。
 function jsab(r, _colors, _uid, t, custom) {
-  // 暖色と寒色から 1 色ずつ選ぶ(同系色が 2 つ重なって単色に見えるのを防ぐ)
-  const WARM = ["#ff2d95", "#ff6a3d", "#ffe14d"], COOL = ["#00e5ff", "#7cff4d", "#b36bff", "#4d7cff"];
-  const warm = WARM[rint(r, 0, WARM.length - 1)], cool = COOL[rint(r, 0, COOL.length - 1)];
-  const swap = r() < 0.5;
-  const ca = custom ?? (swap ? cool : warm), cb = swap ? warm : cool, cw = "#ffffff";
+  // 赤を主役に白をアクセントにした一色系(色を固定した場合は赤の代わりにその色)
+  const ca = custom ?? "#ff2d55", cb = "#ffffff", cw = "#ffffff";
   const ph = (t * 4) % 1, pulse = (1 - ph) ** 3;
   const poly = (n, rad) => Array.from({ length: n }, (_, i) => {
     const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
@@ -457,7 +454,7 @@ function jsab(r, _colors, _uid, t, custom) {
   const orbDir = r() < 0.5 ? -1 : 1;
 
   const s = cornerSize, co = f(0.1 + 0.25 * pulse);
-  let out = `<g fill="${cb}" fill-opacity="${co}"><polygon points="0,0 ${s},0 0,${s}"/><polygon points="100,0 ${100 - s},0 100,${s}"/>` +
+  let out = `<g fill="${ca}" fill-opacity="${co}"><polygon points="0,0 ${s},0 0,${s}"/><polygon points="100,0 ${100 - s},0 100,${s}"/>` +
     `<polygon points="0,100 ${s},100 0,${100 - s}"/><polygon points="100,100 ${100 - s},100 100,${100 - s}"/></g>`;
   for (const b of beams) {
     out += `<rect x="-20" y="${f(50 - b.w / 2)}" width="140" height="${f(b.w)}" fill="${ca}" fill-opacity="${f(0.35 + 0.4 * pulse)}" transform="rotate(${f(b.base + 180 * b.m * b.d * t)} 50 50)"/>`;
@@ -494,7 +491,7 @@ export const STYLES = [
   { id: "invader", name: "インベーダー", bg: "#1f2328", colors: 1, draw: invader,
     desc: "オリジナル。ゲーム「スペースインベーダー」の敵キャラのような、目・触角・足を持つドット絵です。" },
   { id: "jsab", name: "JSAB風（動く）", bg: "#0b0b1a", colors: 1, draw: jsab, animated: true,
-    desc: "ゲーム「Just Shapes & Beats」のような、ネオン色の図形がビートに合わせて脈打つ動くアイコン。2 秒でループし、GIF で保存できます。" },
+    desc: "ゲーム「Just Shapes & Beats」のような、赤と白の図形がビートに合わせて脈打つ動くアイコン。2 秒でループし、GIF で保存できます。" },
   { id: "ssh", name: "SSH randomart", bg: "#1f2328", colors: 1, draw: sshart,
     desc: "ssh-keygen や接続時のホスト鍵確認で表示される、鍵の指紋（fingerprint）を絵にしたもの。通称 randomart です。" },
   { id: "pixel", name: "Blockies風", bg: "#fafafa", colors: 3, draw: pixel,
