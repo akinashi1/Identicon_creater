@@ -436,9 +436,11 @@ function mosaic(r, colors) {
 // JSAB 風 (アニメ): ネオン色の図形がビートに合わせて脈打つ。t(0〜1) が 1 ループで、4 拍ぶんの動き。
 // 回転は必ず「対称性の整数倍」だけ回すので、t=1 と t=0 が一致してループが途切れない。
 function jsab(r, _colors, _uid, t, custom) {
-  const NEON = ["#ff2d95", "#00e5ff", "#ffe14d", "#7cff4d", "#b36bff", "#ff6a3d"];
-  const i0 = rint(r, 0, 5), i1 = (i0 + rint(r, 1, 5)) % 6;
-  const ca = custom ?? NEON[i0], cb = NEON[i1], cw = "#ffffff";
+  // 暖色と寒色から 1 色ずつ選ぶ(同系色が 2 つ重なって単色に見えるのを防ぐ)
+  const WARM = ["#ff2d95", "#ff6a3d", "#ffe14d"], COOL = ["#00e5ff", "#7cff4d", "#b36bff", "#4d7cff"];
+  const warm = WARM[rint(r, 0, WARM.length - 1)], cool = COOL[rint(r, 0, COOL.length - 1)];
+  const swap = r() < 0.5;
+  const ca = custom ?? (swap ? cool : warm), cb = swap ? warm : cool, cw = "#ffffff";
   const ph = (t * 4) % 1, pulse = (1 - ph) ** 3;
   const poly = (n, rad) => Array.from({ length: n }, (_, i) => {
     const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
