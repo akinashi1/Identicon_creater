@@ -222,10 +222,38 @@ function invader(r, [fg]) {
   return out + "</g>";
 }
 
+// SSH ランダムアート (ssh-keygen の drunken bishop)。17x9 の盤面を 2bit ずつ斜めに歩いた訪問回数を文字にする
+function sshart(r, [fg]) {
+  const W = 17, H = 9, SYMBOLS = " .o+=*BOX@%&#/^";
+  const board = Array.from({ length: H }, () => Array(W).fill(0));
+  let x = W >> 1, y = H >> 1;
+  const start = [x, y];
+  for (let i = 0; i < 32; i++) {
+    let byte = Math.floor(r() * 256);
+    for (let k = 0; k < 4; k++, byte >>= 2) {
+      x = Math.min(W - 1, Math.max(0, x + (byte & 1 ? 1 : -1)));
+      y = Math.min(H - 1, Math.max(0, y + (byte & 2 ? 1 : -1)));
+      board[y][x]++;
+    }
+  }
+  board[start[1]][start[0]] = "S";
+  board[y][x] = "E";
+
+  const cw = 100 / (W + 2), ch = 8.4, top = (100 - ch * (H + 2)) / 2;
+  let out = `<rect x="${f(cw / 2)}" y="${f(top + ch / 2)}" width="${f(cw * (W + 1))}" height="${f(ch * (H + 1))}" fill="none" stroke="${fg}" stroke-width="0.8"/>` +
+    `<g fill="${fg}" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="7.6" font-weight="700" text-anchor="middle">`;
+  board.forEach((row, j) => row.forEach((v, i) => {
+    const c = typeof v === "string" ? v : SYMBOLS[Math.min(v, SYMBOLS.length - 1)];
+    if (c !== " ") out += `<text x="${f(cw * (i + 1.5))}" y="${f(top + ch * (j + 1.5) + 2.6)}">${c}</text>`;
+  }));
+  return out + "</g>";
+}
+
 /** bg: 'auto' のときに使うスタイル別の既定背景。null は背景なし(自前描画) */
 export const STYLES = [
   { id: "github", name: "GitHub風", bg: "#f0f0f0", colors: 1, draw: github },
   { id: "invader", name: "インベーダー", bg: "#1f2328", colors: 1, draw: invader },
+  { id: "ssh", name: "SSHアート", bg: "#1f2328", colors: 1, draw: sshart },
   { id: "pixel", name: "ピクセル", bg: "#fafafa", colors: 3, draw: pixel },
   { id: "rings", name: "リング", bg: "#fafafa", colors: 3, draw: rings },
   { id: "blocks", name: "ブロック", bg: "#fafafa", colors: 4, draw: blocks },
