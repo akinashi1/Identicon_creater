@@ -5,7 +5,7 @@ const $ = (sel) => document.querySelector(sel);
 const el = {
   seed: $("#seed"), random: $("#random"), shape: $("#shape"), bg: $("#bg"), size: $("#size"),
   useColor: $("#useColor"), color: $("#color"), preview: $("#preview"), gallery: $("#gallery"),
-  batch: $("#batch"), roll: $("#roll"), status: $("#status"), dlSvg: $("#dlSvg"), dlPng: $("#dlPng"), copySvg: $("#copySvg"), share: $("#share"),
+  styleName: $("#styleName"), styleDesc: $("#styleDesc"), batch: $("#batch"), roll: $("#roll"), status: $("#status"), dlSvg: $("#dlSvg"), dlPng: $("#dlPng"), copySvg: $("#copySvg"), share: $("#share"),
 };
 
 const state = { seed: "", style: "github" };
@@ -90,6 +90,9 @@ function update() {
     tile.firstChild.innerHTML = render(state.seed, options(id, 128));
     tile.setAttribute("aria-pressed", String(id === state.style));
   }
+  const info = STYLES.find((s) => s.id === state.style);
+  el.styleName.textContent = info.name;
+  el.styleDesc.textContent = info.desc;
   renderBatch();
   history.replaceState(null, "", shareUrl());
 }
